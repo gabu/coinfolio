@@ -1,0 +1,6 @@
+package: github.com/gabu/coinfolio
+import:
+- package: github.com/urfave/cli
+- package: github.com/gabu/moon
+- package: github.com/olekukonko/tablewriter
+- package: github.com/mattn/go-runewidth

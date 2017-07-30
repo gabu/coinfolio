@@ -1,0 +1,37 @@
+hash: 435391edb5bc0930b383b67bf1a5e23752c0678b96b88dbbad82192c533a28fe
+updated: 2017-07-29T23:43:25.114130919+09:00
+imports:
+- name: github.com/bitfinexcom/bitfinex-api-go
+  version: 80112fc15e3577dc14f77262d57d40f1272d2637
+  subpackages:
+  - utils
+  - v1
+- name: github.com/gabu/go-bitgrail
+  version: 272261fd936d064dcc33e8d8bee4984836841983
+- name: github.com/gabu/go-cryptopia
+  version: 698f669c0909b76d532d1e76471dcbf44cf4ae78
+- name: github.com/gabu/go-liqui
+  version: c069282cdb62af43a8490df6d3259144485d41a5
+- name: github.com/gabu/go-poloniex
+  version: 560d7b0b91794dfd36a4a0f4080f36930b6fad44
+- name: github.com/gabu/moon
+  version: 10d796e9514796e3286b6b540f93df2e855eb419
+- name: github.com/gorilla/websocket
+  version: a91eba7f97777409bc2c443f5534d41dd20c5720
+- name: github.com/mattn/go-runewidth
+  version: 97311d9f7767e3d6f422ea06661bc2c7a19e8a5d
+- name: github.com/olekukonko/tablewriter
+  version: be5337e7b39e64e5f91445ce7e721888dbab7387
+- name: github.com/pkg/errors
+  version: c605e284fe17294bda444b34710735b29d1a9d90
+- name: github.com/toorop/go-bittrex
+  version: ca71dd3098d4b6cf3a4a76f0901207f0d7c73bca
+- name: github.com/ugorji/go
+  version: 708a42d246822952f38190a8d8c4e6b16a0e600c
+  subpackages:
+  - codec
+- name: github.com/urfave/cli
+  version: 4b90d79a682b4bf685762c7452db20f2a676ecb2
+- name: gopkg.in/jcelliott/turnpike.v2
+  version: fd62c756857599590cc1f661bd3e4e2ecf25cfd8
+testImports: []

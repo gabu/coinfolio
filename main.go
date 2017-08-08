@@ -27,20 +27,6 @@ type Balance struct {
 	Balance  moon.Balance
 }
 
-type Balances []Balance
-
-func (b Balances) Len() int {
-	return len(b)
-}
-
-func (b Balances) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
-
-func (b Balances) Less(i, j int) bool {
-	return b[i].Balance.BtcValue > b[j].Balance.BtcValue
-}
-
 func main() {
 	app := cli.NewApp()
 	app.Name = "coinfolio"
@@ -68,8 +54,8 @@ func main() {
 }
 
 func aggs(c *cli.Context) error {
-	balances := Balances{}
 	var err error
+	balances := []Balance{}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -81,7 +67,9 @@ func aggs(c *cli.Context) error {
 		}
 	}
 
-	sort.Sort(balances)
+	sort.Slice(balances, func(i int, j int) bool {
+		return balances[i].Balance.BtcValue > balances[j].Balance.BtcValue
+	})
 
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Exchange", "Symbol", "Value", "BTC Value"})
@@ -99,7 +87,7 @@ func aggs(c *cli.Context) error {
 	return nil
 }
 
-func getBalances(ctx context.Context, c *cli.Context, exchange string, balances Balances) (Balances, error) {
+func getBalances(ctx context.Context, c *cli.Context, exchange string, balances []Balance) ([]Balance, error) {
 	if s := c.String(exchange); s != "" {
 		key, secret, err := parseKey(s)
 		if err != nil {

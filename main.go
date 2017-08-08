@@ -84,16 +84,16 @@ func aggs(c *cli.Context) error {
 	sort.Sort(balances)
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Exchange", "Symbol", "BTC Value"})
+	table.SetHeader([]string{"Exchange", "Symbol", "Value", "BTC Value"})
 
 	total := 0.0
 	for _, b := range balances {
 		v, _ := strconv.ParseFloat(b.Balance.BtcValue, 64)
 		total += v
-		table.Append([]string{b.Exchange, b.Symbol, b.Balance.BtcValue})
+		table.Append([]string{b.Exchange, b.Symbol, b.Balance.Amount, b.Balance.BtcValue})
 	}
 
-	table.SetFooter([]string{"", "Total", moon.FormatFloat(total) + " BTC"})
+	table.SetFooter([]string{"", "Total", "", moon.FormatFloat(total) + " BTC"})
 	table.Render()
 
 	return nil

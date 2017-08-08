@@ -34,6 +34,12 @@ func main() {
 	app.Version = "1.0.0"
 
 	flags := []cli.Flag{}
+
+	flags = append(flags, cli.StringSliceFlag{
+		Name:  "sort",
+		Usage: `sort method, "exchange", "symbol", btc", "value" are available. (default: btc)`,
+	})
+
 	for _, exchange := range supportedExchanges {
 		flags = append(flags, cli.StringFlag{
 			Name:  exchange,
@@ -67,8 +73,24 @@ func aggs(c *cli.Context) error {
 		}
 	}
 
+	sortm := c.StringSlice("sort")
 	sort.Slice(balances, func(i int, j int) bool {
-		return balances[i].Balance.BtcValue > balances[j].Balance.BtcValue
+		ib, jb := balances[i], balances[j]
+		for _, m := range sortm {
+			if m == "btc" && ib.Balance.BtcValue != jb.Balance.BtcValue {
+				return ib.Balance.BtcValue > jb.Balance.BtcValue
+			}
+			if m == "exchange" && ib.Exchange != jb.Exchange {
+				return ib.Exchange > jb.Exchange
+			}
+			if m == "symbol" && ib.Symbol != jb.Symbol {
+				return ib.Symbol > jb.Symbol
+			}
+			if m == "value" && ib.Balance.Amount != jb.Balance.Amount {
+				return ib.Balance.Amount > jb.Balance.Amount
+			}
+		}
+		return false
 	})
 
 	table := tablewriter.NewWriter(os.Stdout)

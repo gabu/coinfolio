@@ -6,13 +6,16 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/gabu/moon"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
 
-var supportedExchanges []string = []string{
+var supportedExchanges = []string{
 	"poloniex",
 	"bittrex",
 	"cryptopia",
@@ -41,7 +44,7 @@ func main() {
 	})
 
 	for _, exchange := range supportedExchanges {
-		flags = append(flags, cli.StringFlag{
+		flags = append(flags, cli.StringSliceFlag{
 			Name:  exchange,
 			Usage: "api key and secret for " + exchange + " (key:secret)",
 		})
@@ -51,26 +54,35 @@ func main() {
 	app.Action = func(c *cli.Context) error {
 		if c.NumFlags() == 0 {
 			return cli.ShowAppHelp(c)
-		} else {
-			return aggs(c)
 		}
+		return aggs(c)
 	}
 
 	app.Run(os.Args)
 }
 
 func aggs(c *cli.Context) error {
-	var err error
+	var mu sync.Mutex
 	balances := []Balance{}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	wg, ctx := errgroup.WithContext(ctx)
+
 	for _, exchange := range supportedExchanges {
-		balances, err = getBalances(ctx, c, exchange, balances)
-		if err != nil {
+		exchange := exchange
+		wg.Go(func() error {
+			b, err := getBalances(ctx, c, exchange)
+			mu.Lock()
+			defer mu.Unlock()
+			balances = append(balances, b...)
 			return err
-		}
+		})
+	}
+
+	if err := wg.Wait(); err != nil {
+		return err
 	}
 
 	sortm := c.StringSlice("sort")
@@ -109,8 +121,18 @@ func aggs(c *cli.Context) error {
 	return nil
 }
 
-func getBalances(ctx context.Context, c *cli.Context, exchange string, balances []Balance) ([]Balance, error) {
-	if s := c.String(exchange); s != "" {
+func getBalances(ctx context.Context, c *cli.Context, exchange string) ([]Balance, error) {
+	ss := c.StringSlice(exchange)
+	balances := make([]Balance, 0, len(ss))
+
+	for i, s := range ss {
+		if s == "" {
+			continue
+		}
+		var exSuffix string
+		if len(ss) > 1 {
+			exSuffix = " #" + strconv.FormatInt(int64(i+1), 10)
+		}
 		key, secret, err := parseKey(s)
 		if err != nil {
 			return balances, err
@@ -118,12 +140,12 @@ func getBalances(ctx context.Context, c *cli.Context, exchange string, balances 
 		ex := newExchange(exchange)
 		bs, err := ex.GetBalances(ctx, key, secret)
 		if err != nil {
-			return balances, newExchangeError(exchange, err)
+			return balances, newExchangeError(exchange+exSuffix, err)
 		}
 		for s, b := range *bs {
 			balances = append(balances, Balance{
 				Symbol:   s,
-				Exchange: exchange,
+				Exchange: exchange + exSuffix,
 				Balance:  b,
 			})
 		}

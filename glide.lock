@@ -1,5 +1,5 @@
-hash: 435391edb5bc0930b383b67bf1a5e23752c0678b96b88dbbad82192c533a28fe
-updated: 2017-07-29T23:43:25.114130919+09:00
+hash: d84d4706d683a4eefa92dab2570425a9faa44188bf59f5916891b7fa2bd1dc03
+updated: 2017-08-08T19:19:11.918103459+09:00
 imports:
 - name: github.com/bitfinexcom/bitfinex-api-go
   version: 80112fc15e3577dc14f77262d57d40f1272d2637
@@ -32,6 +32,14 @@ imports:
   - codec
 - name: github.com/urfave/cli
   version: 4b90d79a682b4bf685762c7452db20f2a676ecb2
+- name: golang.org/x/net
+  version: f5079bd7f6f74e23c4d65efa0f4ce14cbd6a3c0f
+  subpackages:
+  - context
+- name: golang.org/x/sync
+  version: f52d1811a62927559de87708c8913c1650ce4f26
+  subpackages:
+  - errgroup
 - name: gopkg.in/jcelliott/turnpike.v2
   version: fd62c756857599590cc1f661bd3e4e2ecf25cfd8
 testImports: []

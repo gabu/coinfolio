@@ -4,3 +4,6 @@ import:
 - package: github.com/gabu/moon
 - package: github.com/olekukonko/tablewriter
 - package: github.com/mattn/go-runewidth
+- package: golang.org/x/sync
+  subpackages:
+  - errgroup

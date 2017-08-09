@@ -6,13 +6,16 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/gabu/moon"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli"
 )
 
-var supportedExchanges []string = []string{
+var supportedExchanges = []string{
 	"poloniex",
 	"bittrex",
 	"cryptopia",
@@ -27,20 +30,6 @@ type Balance struct {
 	Balance  moon.Balance
 }
 
-type Balances []Balance
-
-func (b Balances) Len() int {
-	return len(b)
-}
-
-func (b Balances) Swap(i, j int) {
-	b[i], b[j] = b[j], b[i]
-}
-
-func (b Balances) Less(i, j int) bool {
-	return b[i].Balance.BtcValue > b[j].Balance.BtcValue
-}
-
 func main() {
 	app := cli.NewApp()
 	app.Name = "coinfolio"
@@ -48,8 +37,14 @@ func main() {
 	app.Version = "1.0.0"
 
 	flags := []cli.Flag{}
+
+	flags = append(flags, cli.StringSliceFlag{
+		Name:  "sort",
+		Usage: `sort method, "exchange", "symbol", btc", "value" are available. (default: btc)`,
+	})
+
 	for _, exchange := range supportedExchanges {
-		flags = append(flags, cli.StringFlag{
+		flags = append(flags, cli.StringSliceFlag{
 			Name:  exchange,
 			Usage: "api key and secret for " + exchange + " (key:secret)",
 		})
@@ -59,48 +54,85 @@ func main() {
 	app.Action = func(c *cli.Context) error {
 		if c.NumFlags() == 0 {
 			return cli.ShowAppHelp(c)
-		} else {
-			return aggs(c)
 		}
+		return aggs(c)
 	}
 
 	app.Run(os.Args)
 }
 
 func aggs(c *cli.Context) error {
-	balances := Balances{}
-	var err error
+	var mu sync.Mutex
+	balances := []Balance{}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	wg, ctx := errgroup.WithContext(ctx)
+
 	for _, exchange := range supportedExchanges {
-		balances, err = getBalances(ctx, c, exchange, balances)
-		if err != nil {
+		exchange := exchange
+		wg.Go(func() error {
+			b, err := getBalances(ctx, c, exchange)
+			mu.Lock()
+			defer mu.Unlock()
+			balances = append(balances, b...)
 			return err
-		}
+		})
 	}
 
-	sort.Sort(balances)
+	if err := wg.Wait(); err != nil {
+		return err
+	}
+
+	sortm := c.StringSlice("sort")
+	sort.Slice(balances, func(i int, j int) bool {
+		ib, jb := balances[i], balances[j]
+		for _, m := range sortm {
+			if m == "btc" && ib.Balance.BtcValue != jb.Balance.BtcValue {
+				return ib.Balance.BtcValue > jb.Balance.BtcValue
+			}
+			if m == "exchange" && ib.Exchange != jb.Exchange {
+				return ib.Exchange > jb.Exchange
+			}
+			if m == "symbol" && ib.Symbol != jb.Symbol {
+				return ib.Symbol > jb.Symbol
+			}
+			if m == "value" && ib.Balance.Amount != jb.Balance.Amount {
+				return ib.Balance.Amount > jb.Balance.Amount
+			}
+		}
+		return false
+	})
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Exchange", "Symbol", "BTC Value"})
+	table.SetHeader([]string{"Exchange", "Symbol", "Value", "BTC Value"})
 
 	total := 0.0
 	for _, b := range balances {
 		v, _ := strconv.ParseFloat(b.Balance.BtcValue, 64)
 		total += v
-		table.Append([]string{b.Exchange, b.Symbol, b.Balance.BtcValue})
+		table.Append([]string{b.Exchange, b.Symbol, b.Balance.Amount, b.Balance.BtcValue})
 	}
 
-	table.SetFooter([]string{"", "Total", moon.FormatFloat(total) + " BTC"})
+	table.SetFooter([]string{"", "Total", "", moon.FormatFloat(total) + " BTC"})
 	table.Render()
 
 	return nil
 }
 
-func getBalances(ctx context.Context, c *cli.Context, exchange string, balances Balances) (Balances, error) {
-	if s := c.String(exchange); s != "" {
+func getBalances(ctx context.Context, c *cli.Context, exchange string) ([]Balance, error) {
+	ss := c.StringSlice(exchange)
+	balances := make([]Balance, 0, len(ss))
+
+	for i, s := range ss {
+		if s == "" {
+			continue
+		}
+		var exSuffix string
+		if len(ss) > 1 {
+			exSuffix = " #" + strconv.FormatInt(int64(i+1), 10)
+		}
 		key, secret, err := parseKey(s)
 		if err != nil {
 			return balances, err
@@ -108,12 +140,12 @@ func getBalances(ctx context.Context, c *cli.Context, exchange string, balances 
 		ex := newExchange(exchange)
 		bs, err := ex.GetBalances(ctx, key, secret)
 		if err != nil {
-			return balances, newExchangeError(exchange, err)
+			return balances, newExchangeError(exchange+exSuffix, err)
 		}
 		for s, b := range *bs {
 			balances = append(balances, Balance{
 				Symbol:   s,
-				Exchange: exchange,
+				Exchange: exchange + exSuffix,
 				Balance:  b,
 			})
 		}
